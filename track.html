@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nord Theme Habit Tracker</title>
+    <style>
+        :root {
+            --nord0: #2E3440;
+            --nord1: #3B4252;
+            --nord2: #434C5E;
+            --nord3: #4C566A;
+            --nord4: #D8DEE9;
+            --nord5: #E5E9F0;
+            --nord6: #ECEFF4;
+            --nord7: #8FBCBB;
+            --nord8: #88C0D0;
+            --nord9: #81A1C1;
+            --nord10: #5E81AC;
+            --nord11: #BF616A;
+            --nord12: #D08770;
+            --nord13: #EBCB8B;
+            --nord14: #A3BE8C;
+            --nord15: #B48EAD;
+            --custom-circle: #8bb2b3;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--nord0);
+            color: var(--nord4);
+            padding: 20px;
+        }
+        h1 {
+            color: var(--nord8);
+            border-bottom: 2px solid var(--nord3);
+            padding-bottom: 10px;
+            border-radius: 0 0 5px 5px;
+        }
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid var(--nord3);
+            position: relative;
+        }
+        th {
+            background-color: var(--nord1);
+            color: var(--nord6);
+        }
+        .habit-cell {
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .habit-circle {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            bottom: 2px;
+            background-color: var(--custom-circle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--nord0);
+            border-radius: 4px;
+        }
+        .habit-circle.left {
+            border-top-left-radius: 20px;
+            border-bottom-left-radius: 20px;
+        }
+        .habit-circle.right {
+            border-top-right-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+        
+    </style>
+</head>
+<body>
+    <h1>June 2023 Habit Tracker</h1>
+    <table id="habitTable">
+        <tr>
+            <th>Habit / Day</th>
+        </tr>
+    </table>
+
+    <script src=".env"></script>
+    <script>
+        const days = 30;
+
+        function createTable() {
+            const table = document.getElementById('habitTable');
+            const headerRow = table.rows[0];
+
+            for (let i = 1; i <= days; i++) {
+                const th = document.createElement('th');
+                th.textContent = i;
+                headerRow.appendChild(th);
+            }
+
+            habits.forEach((habit, habitIndex) => {
+                const row = table.insertRow();
+                const habitCell = row.insertCell();
+                habitCell.textContent = habit;
+
+                for (let i = 1; i <= days; i++) {
+                    const cell = row.insertCell();
+                    cell.className = 'habit-cell';
+                    cell.dataset.habit = habitIndex;
+                    cell.dataset.day = i;
+                    cell.dataset.filled = 'false';
+                    cell.onclick = function(e) {
+                        e.preventDefault();
+                        toggleHabit(this);
+                        updateRow(this.parentNode);
+                        saveState();
+                    };
+                }
+            });
+
+            loadState();
+        }
+
+        function toggleHabit(cell) {
+            cell.dataset.filled = cell.dataset.filled === 'true' ? 'false' : 'true';
+            updateCellDisplay(cell);
+        }
+
+        function updateCellDisplay(cell) {
+            let circle = cell.querySelector('.habit-circle');
+            if (cell.dataset.filled === 'true') {
+                if (!circle) {
+                    circle = document.createElement('div');
+                    circle.className = 'habit-circle';
+                    cell.appendChild(circle);
+                }
+            } else if (circle) {
+                cell.removeChild(circle);
+            }
+        }
+
+        function updateRow(row) {
+            const cells = Array.from(row.cells).slice(1);
+            cells.forEach(cell => {
+                const circle = cell.querySelector('.habit-circle');
+                if (circle) {
+                    circle.classList.remove('left', 'right');
+                    circle.textContent = '';
+                }
+            });
+
+            let pillStart = null;
+            let pillCount = 0;
+
+            cells.forEach((currentCell, index) => {
+                if (currentCell.dataset.filled === 'true') {
+                    if (pillStart === null) {
+                        pillStart = currentCell;
+                    }
+                    pillCount++;
+                } else {
+                    if (pillStart !== null) {
+                        finalizePill(pillStart, currentCell, pillCount);
+                        pillStart = null;
+                        pillCount = 0;
+                    }
+                }
+            });
+
+            if (pillStart !== null) {
+                finalizePill(pillStart, cells[cells.length - 1].nextElementSibling, pillCount);
+            }
+        }
+
+        function finalizePill(start, end, count) {
+            const cells = Array.from(start.parentNode.cells);
+            const startIndex = cells.indexOf(start);
+            const endIndex = cells.indexOf(end);
+
+            for (let i = startIndex; i < endIndex; i++) {
+                const cell = cells[i];
+                const circle = cell.querySelector('.habit-circle');
+                if (circle) {
+                    if (i === startIndex) circle.classList.add('left');
+                    if (i === endIndex - 1) {
+                        circle.classList.add('right');
+                        circle.textContent = count > 1 ? count.toString() : '';
+                    }
+                }
+            }
+        }
+
+        function saveState() {
+            const state = {};
+            document.querySelectorAll('.habit-cell').forEach(cell => {
+                const key = `${cell.dataset.habit}-${cell.dataset.day}`;
+                state[key] = cell.dataset.filled === 'true';
+            });
+            localStorage.setItem('habitTrackerState', JSON.stringify(state));
+        }
+
+        function loadState() {
+            const state = JSON.parse(localStorage.getItem('habitTrackerState')) || {};
+            document.querySelectorAll('.habit-cell').forEach(cell => {
+                const key = `${cell.dataset.habit}-${cell.dataset.day}`;
+                cell.dataset.filled = state[key] ? 'true' : 'false';
+                updateCellDisplay(cell);
+            });
+            document.querySelectorAll('tr').forEach(row => {
+                updateRow(row);
+            });
+        }
+
+        createTable();
+    </script>
+</body>
+</html>
