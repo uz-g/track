@@ -6,4 +6,4 @@ const habits = [
     'HABIT_5',
     'HABIT_6',
     'HABIT_7'
-];
+]; // this is an example of your .env file
